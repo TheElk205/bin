@@ -5,7 +5,7 @@ mod errors;
 mod highlight;
 mod io;
 mod params;
-
+use actix_cors::Cors;
 use crate::{
     errors::{InternalServerError, NotFound},
     highlight::highlight,
@@ -59,10 +59,17 @@ async fn main() -> std::io::Result<()> {
         let args = args.clone();
 
         move || {
+            let cors = Cors::default()
+                .allow_any_origin()
+                .allowed_methods(vec!["PUT"])
+                .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT])
+                .allowed_header(header::CONTENT_TYPE)
+                .max_age(3600);
             App::new()
                 .app_data(store.clone())
                 .app_data(PayloadConfig::default().limit(args.max_paste_size))
                 .app_data(FormConfig::default().limit(args.max_paste_size))
+                .wrap(cors)
                 .wrap(actix_web::middleware::Compress::default())
                 .route("/", web::get().to(index))
                 .route("/", web::post().to(submit))
@@ -75,6 +82,7 @@ async fn main() -> std::io::Result<()> {
                     error!("Couldn't find resource {}", req.uri());
                     HttpResponse::from_error(NotFound)
                 }))
+
         }
     });
 
